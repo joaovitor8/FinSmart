@@ -1,5 +1,7 @@
 // Categorias padrão criadas para todo novo usuário no momento do registro.
 import "server-only";
+import type { Prisma, PrismaClient } from "@prisma/client";
+
 import { prisma } from "@/src/lib/prisma";
 
 type SeedCategory = {
@@ -8,6 +10,9 @@ type SeedCategory = {
   color: string;
   type: "INCOME" | "EXPENSE" | "BOTH";
 };
+
+// Aceita o client padrão ou um tx de $transaction
+type DbClient = PrismaClient | Prisma.TransactionClient;
 
 const DEFAULT_CATEGORIES: SeedCategory[] = [
   // Saídas comuns
@@ -31,8 +36,9 @@ const DEFAULT_CATEGORIES: SeedCategory[] = [
 ];
 
 // Cria as categorias padrão para um usuário recém-criado.
-export async function seedDefaultCategories(userId: string) {
-  await prisma.category.createMany({
+// Recebe opcionalmente um tx de transação para rodar atomicamente com o create do user.
+export async function seedDefaultCategories(userId: string, db: DbClient = prisma) {
+  await db.category.createMany({
     data: DEFAULT_CATEGORIES.map((c) => ({ userId, ...c })),
     skipDuplicates: true,
   });

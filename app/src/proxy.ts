@@ -7,14 +7,19 @@ const publicRoutes = ["/login", "/register", "/"];
 // Rotas exclusivas de quem NÃO está logado
 const authRoutes = ["/login", "/register"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("auth_token")?.value;
   const payload = token ? await verifyToken(token) : null;
   const isAuthenticated = !!payload;
 
-  // API: bloqueia tudo fora de /api/auth quando não logado
-  if (path.startsWith("/api/") && !path.startsWith("/api/auth")) {
+  // Rotas /api/* têm tratamento próprio — early return, não cai na lógica de páginas
+  if (path.startsWith("/api/")) {
+    // /api/auth/* (login, register, logout, me) é público
+    if (path.startsWith("/api/auth")) {
+      return NextResponse.next();
+    }
+    // Demais APIs exigem login — retorna 401 (NÃO redireciona, senão POST vira 307)
     if (!isAuthenticated) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
@@ -24,7 +29,7 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.includes(path);
   const isAuthRoute = authRoutes.includes(path);
 
-  // Rota privada sem login → manda pro login
+  // Página privada sem login → manda pro login (só atinge GET de páginas)
   if (!isPublicRoute && !isAuthenticated) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

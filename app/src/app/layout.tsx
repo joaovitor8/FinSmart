@@ -19,12 +19,27 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "FinSmart - Controle Financeiro Inteligente",
   description: "Gerencie suas finanças pessoais com inteligência",
+  applicationName: "FinSmart",
+  appleWebApp: {
+    capable: true,
+    title: "FinSmart",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  // Em dark a barra fica #09090b; em light fica branco
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+  ],
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -37,8 +52,13 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">
-        {/* Tema default dark; toggle entra depois */}
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        {/* Dark por padrão; usuário pode alternar pelo header/sidebar */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
           <AuthProvider>
             {children}
             <Toaster richColors position="top-right" />

@@ -11,7 +11,9 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
   Wallet,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/src/components/ui/button";
@@ -41,6 +43,7 @@ import { ConfirmDialog } from "@/src/components/ui/confirm-dialog";
 
 import { AddTransaction } from "@/src/components/transactions/addTransaction";
 import { EditTransaction } from "@/src/components/transactions/editTransaction";
+import { ImportTransactionsSheet } from "@/src/components/transactions/importTransactionsSheet";
 
 import { deleteTransaction } from "@/src/lib/actions/transactions";
 import { categoryIconMap, getCategoryColors } from "@/src/lib/constants";
@@ -49,15 +52,46 @@ import type { CategoryDTO, TransactionDTO } from "@/src/lib/types";
 
 const ITEMS_PER_PAGE = 10;
 
+type Period = "all" | "30d" | "90d" | "thisMonth" | "lastMonth" | "thisYear";
+
 type Props = {
   transactions: TransactionDTO[];
   categories: CategoryDTO[];
 };
 
+// Intervalo de datas (UTC) baseado no período escolhido. null = sem limite.
+function periodRange(period: Period): { gte: Date | null; lt: Date | null } {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  switch (period) {
+    case "30d":
+      return { gte: new Date(Date.now() - 30 * 86_400_000), lt: null };
+    case "90d":
+      return { gte: new Date(Date.now() - 90 * 86_400_000), lt: null };
+    case "thisMonth":
+      return {
+        gte: new Date(Date.UTC(y, m, 1)),
+        lt: new Date(Date.UTC(y, m + 1, 1)),
+      };
+    case "lastMonth":
+      return {
+        gte: new Date(Date.UTC(y, m - 1, 1)),
+        lt: new Date(Date.UTC(y, m, 1)),
+      };
+    case "thisYear":
+      return { gte: new Date(Date.UTC(y, 0, 1)), lt: null };
+    default:
+      return { gte: null, lt: null };
+  }
+}
+
 export function TransactionsView({ transactions, categories }: Props) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "INCOME" | "EXPENSE">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [periodFilter, setPeriodFilter] = useState<Period>("all");
   const [page, setPage] = useState(1);
 
   const [editTarget, setEditTarget] = useState<TransactionDTO | null>(null);
@@ -65,17 +99,33 @@ export function TransactionsView({ transactions, categories }: Props) {
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const hasActiveFilters =
+    !!search || typeFilter !== "all" || categoryFilter !== "all" || periodFilter !== "all";
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
+    const { gte, lt } = periodRange(periodFilter);
     return transactions.filter((t) => {
       const matchSearch =
         t.description.toLowerCase().includes(s) ||
         t.category.name.toLowerCase().includes(s);
       const matchType = typeFilter === "all" || t.type === typeFilter;
-      return matchSearch && matchType;
+      const matchCategory = categoryFilter === "all" || t.category.id === categoryFilter;
+      const date = new Date(t.date);
+      const matchPeriod = (!gte || date >= gte) && (!lt || date < lt);
+      return matchSearch && matchType && matchCategory && matchPeriod;
     });
-  }, [transactions, search, typeFilter]);
+  }, [transactions, search, typeFilter, categoryFilter, periodFilter]);
+
+  function clearFilters() {
+    setSearch("");
+    setTypeFilter("all");
+    setCategoryFilter("all");
+    setPeriodFilter("all");
+    setPage(1);
+  }
 
   const totals = useMemo(() => {
     let income = 0;
@@ -113,13 +163,23 @@ export function TransactionsView({ transactions, categories }: Props) {
           </p>
         </div>
 
-        <Button
-          onClick={() => setAddOpen(true)}
-          className="bg-emerald-500 text-background hover:bg-emerald-600 font-semibold shadow-lg shadow-emerald-500/20"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Lançamento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            className="border-border bg-card text-foreground"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Importar
+          </Button>
+          <Button
+            onClick={() => setAddOpen(true)}
+            className="bg-emerald-500 text-background hover:bg-emerald-600 font-semibold shadow-lg shadow-emerald-500/20"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Lançamento
+          </Button>
+        </div>
       </div>
 
       {/* Resumo do filtro atual */}
@@ -148,8 +208,8 @@ export function TransactionsView({ transactions, categories }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:flex-wrap">
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar descrição..."
@@ -169,15 +229,67 @@ export function TransactionsView({ transactions, categories }: Props) {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-40 bg-card border-border">
+          <SelectTrigger className="w-36 bg-card border-border">
             <SelectValue placeholder="Tipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">Todos os tipos</SelectItem>
             <SelectItem value="INCOME">Entradas</SelectItem>
             <SelectItem value="EXPENSE">Saídas</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select
+          value={categoryFilter}
+          onValueChange={(v) => {
+            setCategoryFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-48 bg-card border-border">
+            <SelectValue placeholder="Categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as categorias</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={periodFilter}
+          onValueChange={(v) => {
+            setPeriodFilter(v as Period);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-44 bg-card border-border">
+            <SelectValue placeholder="Período" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todo o período</SelectItem>
+            <SelectItem value="30d">Últimos 30 dias</SelectItem>
+            <SelectItem value="90d">Últimos 90 dias</SelectItem>
+            <SelectItem value="thisMonth">Este mês</SelectItem>
+            <SelectItem value="lastMonth">Mês passado</SelectItem>
+            <SelectItem value="thisYear">Este ano</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="text-muted-foreground hover:text-foreground gap-1"
+          >
+            <X className="h-3.5 w-3.5" />
+            Limpar
+          </Button>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -340,6 +452,11 @@ export function TransactionsView({ transactions, categories }: Props) {
         open={editOpen}
         onOpenChange={setEditOpen}
         transaction={editTarget}
+        categories={categories}
+      />
+      <ImportTransactionsSheet
+        open={importOpen}
+        onOpenChange={setImportOpen}
         categories={categories}
       />
       <ConfirmDialog

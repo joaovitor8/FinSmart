@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/src/lib/prisma";
 import { requireUserId } from "@/src/lib/auth-server";
-import { transactionSchema } from "@/src/lib/schemas";
+import { transactionImportSchema, transactionSchema } from "@/src/lib/schemas";
 import { dateInputToUTC } from "@/src/lib/format";
 import type { TransactionDTO } from "@/src/lib/types";
 
@@ -103,6 +103,41 @@ export async function updateTransaction(id: string, input: unknown) {
   revalidatePath("/main/transactions");
   revalidatePath("/main/dashboard");
   revalidatePath("/main/budget");
+}
+
+// Importa em lote (CSV de extrato). Valida tudo, confere donos das categorias, insere em createMany.
+export async function importTransactions(input: unknown): Promise<{ imported: number }> {
+  const userId = await requireUserId();
+  const data = transactionImportSchema.parse(input);
+
+  // Coleta os categoryIds únicos e valida todos de uma vez
+  const uniqueCategoryIds = Array.from(new Set(data.items.map((i) => i.categoryId)));
+  const owned = await prisma.category.findMany({
+    where: { id: { in: uniqueCategoryIds }, userId },
+    select: { id: true },
+  });
+  const ownedSet = new Set(owned.map((c) => c.id));
+  const invalid = uniqueCategoryIds.filter((id) => !ownedSet.has(id));
+  if (invalid.length > 0) {
+    throw new Error("Uma ou mais categorias inválidas");
+  }
+
+  const result = await prisma.transaction.createMany({
+    data: data.items.map((i) => ({
+      userId,
+      type: i.type,
+      amount: i.amount,
+      description: i.description,
+      categoryId: i.categoryId,
+      date: dateInputToUTC(i.date),
+    })),
+  });
+
+  revalidatePath("/main/transactions");
+  revalidatePath("/main/dashboard");
+  revalidatePath("/main/budget");
+  revalidatePath("/main/reports");
+  return { imported: result.count };
 }
 
 // Remove uma transação.

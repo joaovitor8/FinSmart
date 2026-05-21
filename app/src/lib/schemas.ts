@@ -15,6 +15,30 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(2, "Nome muito curto"),
+  email: z.string().trim().toLowerCase().email("Email inválido"),
+});
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Senha atual obrigatória"),
+    newPassword: z.string().min(8, "Senha precisa ter no mínimo 8 caracteres"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Confirmação não confere",
+    path: ["confirmPassword"],
+  });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, "Senha obrigatória"),
+  confirm: z.literal("EXCLUIR", { errorMap: () => ({ message: "Digite EXCLUIR para confirmar" }) }),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
 // --- Goals ---
 export const goalIconEnum = z.enum(["target", "plane", "car", "home", "shield"]);
 export const goalColorEnum = z.enum(["emerald", "blue", "amber", "purple"]);
@@ -76,3 +100,9 @@ export const transactionSchema = z.object({
   date: z.string().min(1, "Data obrigatória"),
 });
 export type TransactionInput = z.infer<typeof transactionSchema>;
+
+// Bulk import (importação de extrato CSV)
+export const transactionImportSchema = z.object({
+  items: z.array(transactionSchema).min(1, "Nenhum lançamento para importar"),
+});
+export type TransactionImportInput = z.infer<typeof transactionImportSchema>;

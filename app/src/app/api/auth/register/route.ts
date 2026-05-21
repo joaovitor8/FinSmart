@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 
@@ -21,14 +22,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Este email já está em uso" }, { status: 400 });
     }
 
-    // Hash + create
+    // Hash + create + seed em uma única transação — ou tudo passa, ou nada fica salvo
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
-      data: { email, name, passwordHash },
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: { email, name, passwordHash },
+      });
+      await seedDefaultCategories(user.id, tx);
     });
-
-    // Já entrega as categorias padrão prontas
-    await seedDefaultCategories(user.id);
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

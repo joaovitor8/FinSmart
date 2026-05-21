@@ -4,23 +4,28 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
+  BarChart3,
   LayoutDashboard,
   LogOut,
   PieChart,
   Receipt,
   Settings,
+  Sparkles,
   Target,
   TrendingUp,
 } from "lucide-react";
 
 import { cn } from "@/src/lib/utils";
 import { useAuth } from "@/src/contexts/AuthContext";
+import { ThemeToggle } from "@/src/components/theme-toggle";
 
 const navItems = [
   { href: "/main/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/main/mentor", label: "Mentor IA", icon: Sparkles },
   { href: "/main/transactions", label: "Lançamentos", icon: ArrowLeftRight },
   { href: "/main/monthlyFees", label: "Mensalidades", icon: Receipt },
   { href: "/main/budget", label: "Orçamento", icon: PieChart },
+  { href: "/main/reports", label: "Relatórios", icon: BarChart3 },
   { href: "/main/goals", label: "Metas", icon: Target },
   { href: "/main/settings", label: "Configurações", icon: Settings },
 ];
@@ -87,6 +92,7 @@ export function AppSidebar() {
             </p>
             <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
           </div>
+          <ThemeToggle />
           <button
             onClick={handleLogout}
             className="text-muted-foreground hover:text-rose-500 transition-colors p-1"

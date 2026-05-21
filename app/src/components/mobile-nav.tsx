@@ -7,18 +7,18 @@ import {
   LayoutDashboard,
   PieChart,
   Receipt,
-  Target,
+  Sparkles,
 } from "lucide-react";
 
 import { cn } from "@/src/lib/utils";
 
-// Mobile-nav menor: cabem 5 itens. Configurações fica acessível pelo header.
+// Mobile-nav menor: cabem 5 itens. Demais itens ficam no menu do header.
 const navItems = [
   { href: "/main/dashboard", label: "Início", icon: LayoutDashboard },
+  { href: "/main/mentor", label: "Mentor", icon: Sparkles },
   { href: "/main/transactions", label: "Lanç.", icon: ArrowLeftRight },
   { href: "/main/monthlyFees", label: "Mensal.", icon: Receipt },
   { href: "/main/budget", label: "Orç.", icon: PieChart },
-  { href: "/main/goals", label: "Metas", icon: Target },
 ];
 
 export function MobileNav() {
