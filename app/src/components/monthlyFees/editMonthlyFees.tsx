@@ -1,80 +1,96 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import axios from "axios"
-import { toast } from "sonner"
+import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
-import { Button } from "@/src/components/ui/button"
-import { Input } from "@/src/components/ui/input"
-import { Label } from "@/src/components/ui/label"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/src/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/src/components/ui/select"
-import { Loader2 } from "lucide-react"
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import { Label } from "@/src/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/src/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/src/components/ui/select";
+import { CategorySelect } from "@/src/components/categories/categorySelect";
 
-import type { FeeType } from "./addMonthlyFees" 
-
+import { monthlyFeeSchema, type MonthlyFeeInput } from "@/src/lib/schemas";
+import { updateMonthlyFee } from "@/src/lib/actions/monthlyFees";
+import { dateToInput } from "@/src/lib/format";
+import type { CategoryDTO, MonthlyFeeDTO } from "@/src/lib/types";
 
 type Props = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onUpdate: (fee: FeeType) => void
-  fee: FeeType | null
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fee: MonthlyFeeDTO | null;
+  categories: CategoryDTO[];
+};
 
+export function EditMonthlyFee({ open, onOpenChange, fee, categories }: Props) {
+  const [loading, setLoading] = useState(false);
 
-export function EditMonthlyFee({ open, onOpenChange, onUpdate, fee }: Props) {
-  const [loading, setLoading] = useState(false)
-  const [name, setName] = useState("")
-  const [amount, setAmount] = useState("")
-  const [category, setCategory] = useState("")
-  const [frequency, setFrequency] = useState("Mensal")
-  const [date, setDate] = useState("")
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<MonthlyFeeInput>({
+    resolver: zodResolver(monthlyFeeSchema),
+    defaultValues: {
+      name: "",
+      amount: 0,
+      categoryId: "",
+      frequency: "Mensal",
+      date: "",
+    },
+  });
 
   useEffect(() => {
     if (fee && open) {
-      setName(fee.name)
-      setAmount(fee.amount.toString())
-      setCategory(fee.category)
-      setFrequency(fee.frequency)
-      // Garantir que a data seja lida corretamente
-      setDate(fee.date ? fee.date.split("T")[0] : "") 
+      reset({
+        name: fee.name,
+        amount: fee.amount,
+        categoryId: fee.category.id,
+        frequency: fee.frequency as MonthlyFeeInput["frequency"],
+        date: dateToInput(fee.date),
+      });
     }
-  }, [fee, open])
+  }, [fee, open, reset]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!fee) return
-    setLoading(true)
+  const categoryId = watch("categoryId");
+  const frequency = watch("frequency");
 
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => c.type === "EXPENSE" || c.type === "BOTH"),
+    [categories],
+  );
+
+  const onSubmit = async (data: MonthlyFeeInput) => {
+    if (!fee) return;
+    setLoading(true);
     try {
-      const payload = {
-        name,
-        amount: parseFloat(amount),
-        category,
-        frequency,
-        date: new Date(date).toISOString(),
-      }
-
-      await axios.put(`/api/db/monthlyFees/${fee.id}`, payload)
-
-      onUpdate({
-        ...fee,
-        name,
-        amount: parseFloat(amount),
-        category,
-        frequency,
-        date,
-      })
-
-      toast.success("Mensalidade atualizada com sucesso!")
-      onOpenChange(false)
-    } catch (error) {
-      console.error("Erro ao atualizar:", error)
-      toast.error("Erro ao atualizar. Tente novamente.")
+      await updateMonthlyFee(fee.id, data);
+      toast.success("Mensalidade atualizada!");
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -86,40 +102,44 @@ export function EditMonthlyFee({ open, onOpenChange, onUpdate, fee }: Props) {
           </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5 px-2">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 px-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-name" className="text-sm font-medium text-foreground">Serviço / Nome</Label>
-            <Input id="edit-name" value={name} onChange={(e) => setName(e.target.value)} required className="bg-secondary/50 border-border" />
+            <Label htmlFor="edit-name">Serviço / Nome</Label>
+            <Input id="edit-name" {...register("name")} className="bg-secondary/50 border-border" />
+            {errors.name && <span className="text-xs text-rose-400">{errors.name.message}</span>}
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="edit-amount" className="text-sm font-medium text-foreground">Valor (R$)</Label>
-            <Input id="edit-amount" type="number" step="0.01" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required className="bg-secondary/50 border-border font-mono" />
+            <Label htmlFor="edit-amount">Valor (R$)</Label>
+            <Input
+              id="edit-amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              {...register("amount")}
+              className="bg-secondary/50 border-border font-mono"
+            />
+            {errors.amount && (
+              <span className="text-xs text-rose-400">{errors.amount.message}</span>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-category" className="text-sm font-medium text-foreground">Categoria</Label>
-              <Select value={category} onValueChange={setCategory} required>
-                <SelectTrigger className="bg-secondary/50 border-border">
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Streaming">Streaming</SelectItem>
-                  <SelectItem value="Internet">Internet</SelectItem>
-                  <SelectItem value="Casa">Casa (Água, Luz)</SelectItem>
-                  <SelectItem value="Aluguel">Aluguel</SelectItem>
-                  <SelectItem value="Academia">Academia</SelectItem>
-                  <SelectItem value="Educação">Educação</SelectItem>
-                  <SelectItem value="Seguro">Seguro</SelectItem>
-                  <SelectItem value="Outros">Outros</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Categoria</Label>
+              <CategorySelect
+                categories={visibleCategories}
+                value={categoryId}
+                onChange={(id) => setValue("categoryId", id)}
+              />
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-frequency" className="text-sm font-medium text-foreground">Frequência</Label>
-              <Select value={frequency} onValueChange={setFrequency} required>
+              <Label>Frequência</Label>
+              <Select
+                value={frequency}
+                onValueChange={(v) => setValue("frequency", v as MonthlyFeeInput["frequency"])}
+              >
                 <SelectTrigger className="bg-secondary/50 border-border">
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -131,16 +151,32 @@ export function EditMonthlyFee({ open, onOpenChange, onUpdate, fee }: Props) {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="edit-date" className="text-sm font-medium text-foreground">Data de Aquisição</Label>
-              <Input id="edit-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="bg-secondary/50 border-border" />
+              <Label htmlFor="edit-date">Data</Label>
+              <Input
+                id="edit-date"
+                type="date"
+                {...register("date")}
+                className="bg-secondary/50 border-border"
+              />
             </div>
           </div>
 
-          <Button type="submit" disabled={loading || !name || !amount || !category || !date} className="w-full bg-emerald-500 text-background hover:bg-emerald-600 font-semibold h-11 shadow-lg shadow-emerald-500/20 mt-2" >
-            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : "Salvar Alterações"}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-500 text-background hover:bg-emerald-600 font-semibold h-11 shadow-lg shadow-emerald-500/20 mt-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              "Salvar Alterações"
+            )}
           </Button>
         </form>
       </SheetContent>
     </Sheet>
-  )
+  );
 }

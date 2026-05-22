@@ -1,84 +1,63 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import axios from "axios"
-import { toast } from "sonner"
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
-import { Button } from "@/src/components/ui/button"
-import { Input } from "@/src/components/ui/input"
-import { Label } from "@/src/components/ui/label"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/src/components/ui/sheet"
-import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group"
-import { Loader2, Plane, Car, Shield, Home, Target } from "lucide-react"
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
+import { Label } from "@/src/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/src/components/ui/sheet";
+import { RadioGroup, RadioGroupItem } from "@/src/components/ui/radio-group";
 
-import { useAuth } from "@/src/contexts/AuthContext"
-
-
-const icons = [
-  { value: "target", label: "Objetivo", icon: Target },
-  { value: "plane", label: "Viagem", icon: Plane },
-  { value: "car", label: "Carro", icon: Car },
-  { value: "home", label: "Casa", icon: Home },
-  { value: "shield", label: "Reserva", icon: Shield },
-]
-
-const colors = [
-  { value: "emerald", bg: "bg-emerald-500", ring: "ring-emerald-500" },
-  { value: "blue", bg: "bg-sky-500", ring: "ring-sky-500" },
-  { value: "amber", bg: "bg-amber-500", ring: "ring-amber-500" },
-  { value: "purple", bg: "bg-purple-500", ring: "ring-purple-500" },
-]
+import { goalCreateSchema, type GoalCreateInput } from "@/src/lib/schemas";
+import { goalIcons, goalColors } from "@/src/lib/constants";
+import { createGoal } from "@/src/lib/actions/goals";
 
 type Props = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess: () => void
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
+export function NewGoal({ open, onOpenChange }: Props) {
+  const [loading, setLoading] = useState(false);
 
-export const NewGoal = ({ open, onOpenChange, onSuccess }: Props) => {
-  // Puxa o user do sistema
-  const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  
-  const [name, setName] = useState("")
-  const [target, setTarget] = useState("")
-  const [selectedIcon, setSelectedIcon] = useState("target")
-  const [selectedColor, setSelectedColor] = useState("emerald")
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<GoalCreateInput>({
+    resolver: zodResolver(goalCreateSchema),
+    defaultValues: { name: "", target: 0, icon: "target", color: "emerald" },
+  });
 
-  const resetForm = () => {
-    setName("")
-    setTarget("")
-    setSelectedIcon("target")
-    setSelectedColor("emerald")
-  }
+  const selectedIcon = watch("icon");
+  const selectedColor = watch("color");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user) return
-    setLoading(true)
-
+  const onSubmit = async (data: GoalCreateInput) => {
+    setLoading(true);
     try {
-      await axios.post('/api/db/goals', {
-        name,
-        target: parseFloat(target),
-        icon: selectedIcon,
-        color: selectedColor
-      });
-
-      toast.success("Meta criada com sucesso!")
-      onSuccess()
-      resetForm()
-      onOpenChange(false)
-      
-    } catch (error) {
-      console.error(error)
-      toast.error("Erro ao criar meta.")
+      await createGoal(data);
+      toast.success("Meta criada com sucesso!");
+      reset();
+      onOpenChange(false);
+    } catch {
+      toast.error("Erro ao criar meta.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -90,22 +69,52 @@ export const NewGoal = ({ open, onOpenChange, onSuccess }: Props) => {
           </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6 px-1">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6 px-1">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="name" className="text-sm font-medium text-foreground">Nome do Objetivo</Label>
-            <Input id="name" placeholder="Ex: Viagem para Europa, PS5..." value={name} onChange={(e) => setName(e.target.value)} required className="bg-secondary/50 border-border" />
+            <Label htmlFor="name">Nome do Objetivo</Label>
+            <Input
+              id="name"
+              placeholder="Ex: Viagem para Europa, PS5..."
+              {...register("name")}
+              className="bg-secondary/50 border-border"
+            />
+            {errors.name && (
+              <span className="text-xs text-rose-400">{errors.name.message}</span>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="target" className="text-sm font-medium text-foreground">Quanto você precisa? (R$)</Label>
-            <Input id="target" type="number" step="0.01" min="1" placeholder="0,00" value={target} onChange={(e) => setTarget(e.target.value)} required className="bg-secondary/50 border-border font-mono text-lg" />
+            <Label htmlFor="target">Quanto você precisa? (R$)</Label>
+            <Input
+              id="target"
+              type="number"
+              step="0.01"
+              min="1"
+              placeholder="0,00"
+              {...register("target")}
+              className="bg-secondary/50 border-border font-mono text-lg"
+            />
+            {errors.target && (
+              <span className="text-xs text-rose-400">{errors.target.message}</span>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">
-            <Label className="text-sm font-medium text-foreground">Ícone</Label>
-            <RadioGroup value={selectedIcon} onValueChange={setSelectedIcon} className="grid grid-cols-5 gap-2">
-              {icons.map((item) => (
-                <label key={item.value} className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-2 cursor-pointer transition-all h-20 hover:bg-secondary/80 ${selectedIcon === item.value ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" : "border-border bg-secondary/30 text-muted-foreground"}`}>
+            <Label>Ícone</Label>
+            <RadioGroup
+              value={selectedIcon}
+              onValueChange={(v) => setValue("icon", v as GoalCreateInput["icon"])}
+              className="grid grid-cols-5 gap-2"
+            >
+              {goalIcons.map((item) => (
+                <label
+                  key={item.value}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl border p-2 cursor-pointer transition-all h-20 hover:bg-secondary/80 ${
+                    selectedIcon === item.value
+                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+                      : "border-border bg-secondary/30 text-muted-foreground"
+                  }`}
+                >
                   <RadioGroupItem value={item.value} className="sr-only" />
                   <item.icon className="h-6 w-6" />
                   <span className="text-[10px] font-medium">{item.label}</span>
@@ -115,22 +124,44 @@ export const NewGoal = ({ open, onOpenChange, onSuccess }: Props) => {
           </div>
 
           <div className="flex flex-col gap-3">
-            <Label className="text-sm font-medium text-foreground">Cor do Card</Label>
-            <RadioGroup value={selectedColor} onValueChange={setSelectedColor} className="flex gap-4">
-              {colors.map((c) => (
-                <label key={c.value} className={`relative flex items-center justify-center cursor-pointer group`}>
+            <Label>Cor do Card</Label>
+            <RadioGroup
+              value={selectedColor}
+              onValueChange={(v) => setValue("color", v as GoalCreateInput["color"])}
+              className="flex gap-4"
+            >
+              {goalColors.map((c) => (
+                <label key={c.value} className="relative flex items-center justify-center cursor-pointer group">
                   <RadioGroupItem value={c.value} className="sr-only" />
-                  <div className={`h-10 w-10 rounded-full ${c.bg} transition-all ${selectedColor === c.value ? `ring-2 ring-offset-2 ring-offset-zinc-950 ${c.ring} scale-110` : "opacity-70 group-hover:opacity-100"}`} />
+                  <span className="sr-only">{c.value}</span>
+                  <div
+                    className={`h-10 w-10 rounded-full ${c.bg} transition-all ${
+                      selectedColor === c.value
+                        ? `ring-2 ring-offset-2 ring-offset-zinc-950 ${c.ring} scale-110`
+                        : "opacity-70 group-hover:opacity-100"
+                    }`}
+                  />
                 </label>
               ))}
             </RadioGroup>
           </div>
 
-          <Button type="submit" disabled={loading || !name || !target} className="w-full bg-emerald-500 text-background hover:bg-emerald-600 font-semibold h-11 shadow-lg shadow-emerald-500/20 mt-4" >
-            {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando Meta...</> : "Criar Meta"}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-500 text-background hover:bg-emerald-600 font-semibold h-11 shadow-lg shadow-emerald-500/20 mt-4"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Criando Meta...
+              </>
+            ) : (
+              "Criar Meta"
+            )}
           </Button>
         </form>
       </SheetContent>
     </Sheet>
-  )
+  );
 }

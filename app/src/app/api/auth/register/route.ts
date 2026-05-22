@@ -1,33 +1,34 @@
+
 import { NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
 
-
+import { prisma } from "@/src/lib/prisma";
+import { registerSchema } from "@/src/lib/schemas";
+import { seedDefaultCategories } from "@/src/lib/seed";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 });
+    // Valida e normaliza payload (zod já faz lowercase/trim no email)
+    const parsed = registerSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      const first = parsed.error.issues[0]?.message ?? "Dados inválidos";
+      return NextResponse.json({ error: first }, { status: 400 });
     }
+    const { email, password, name } = parsed.data;
 
-    // Verifica se o email já existe
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
+    // Email já cadastrado?
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
       return NextResponse.json({ error: "Este email já está em uso" }, { status: 400 });
     }
 
-    // Criptografa a senha com bcrypt
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    // Salva no banco
-    await prisma.user.create({
-      data: {
-        email,
-        name,
-        passwordHash,
-      },
+    // Hash + create + seed em uma única transação — ou tudo passa, ou nada fica salvo
+    const passwordHash = await bcrypt.hash(password, 12);
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: { email, name, passwordHash },
+      });
+      await seedDefaultCategories(user.id, tx);
     });
 
     return NextResponse.json({ success: true }, { status: 201 });

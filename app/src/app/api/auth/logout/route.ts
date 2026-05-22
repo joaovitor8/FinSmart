@@ -1,15 +1,14 @@
-// src/app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { AUTH_COOKIE, authCookieOptions } from "@/src/lib/cookie-options";
 
 export async function POST() {
   const cookieStore = await cookies();
-  
-  // Limpa o cookie dizendo que ele expirou no passado
-  cookieStore.set("auth_token", "", {
-    httpOnly: true,
+
+  // Mantém os mesmos flags do login pro browser substituir o cookie
+  cookieStore.set(AUTH_COOKIE, "", {
+    ...authCookieOptions(),
     expires: new Date(0),
-    path: "/",
   });
 
   return NextResponse.json({ success: true });

@@ -1,23 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { Bot, TrendingUp, Wallet } from "lucide-react";
+
 import { Button } from "@/src/components/ui/button";
-import { Bot, Wallet, TrendingUp } from "lucide-react";
 import { useAuth } from "@/src/contexts/AuthContext";
 
-
-
 export default function Home() {
-  // Puxando o usuário para saber se ele está logado
   const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-
-      {/* --- HEADER / NAVBAR --- */}
       <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-background/80 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-          {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-emerald-500 flex items-center justify-center">
               <Bot className="h-5 w-5 text-zinc-950" />
@@ -26,14 +21,15 @@ export default function Home() {
               FinSmart <span className="text-emerald-500">AI</span>
             </span>
           </div>
-  
-          {/* Navegação / Auth */}
+
           <nav className="flex items-center gap-4">
             {!user ? (
-              // Se NÃO estiver logado, mostra botões de Login e Cadastro
               <>
                 <Link href="/login">
-                  <Button variant="ghost" className="text-zinc-300 hover:text-white hover:bg-zinc-800">
+                  <Button
+                    variant="ghost"
+                    className="text-zinc-300 hover:text-white hover:bg-zinc-800"
+                  >
                     Entrar
                   </Button>
                 </Link>
@@ -44,9 +40,11 @@ export default function Home() {
                 </Link>
               </>
             ) : (
-              // Se JÁ ESTIVER logado, mostra o atalho para o sistema
               <Link href="/main/dashboard">
-                <Button variant="ghost" className="text-emerald-500 hover:text-emerald-400 hover:bg-zinc-800 font-medium">
+                <Button
+                  variant="ghost"
+                  className="text-emerald-500 hover:text-emerald-400 hover:bg-zinc-800 font-medium"
+                >
                   Meu Dashboard
                 </Button>
               </Link>
@@ -55,110 +53,112 @@ export default function Home() {
         </div>
       </header>
 
-      {/* --- HERO SECTION (A Capa) --- */}
       <main className="flex-1">
         <section className="container mx-auto flex flex-col items-center justify-center gap-8 py-20 px-4 text-center md:py-32">
-          
-          {/* Badge de Novidade */}
           <div className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm font-medium text-emerald-500 backdrop-blur-sm">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-            Nova IA Financeira 2.0 disponível
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
+            Controle financeiro pessoal, simples e direto
           </div>
 
-          {/* Título Principal */}
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl max-w-4xl">
-            Domine suas finanças com <br className="hidden md:block" />
+            Saiba para onde seu <br className="hidden md:block" />
             <span className="bg-linear-to-r from-emerald-400 to-green-600 bg-clip-text text-transparent">
-              Inteligência Artificial
+              dinheiro está indo
             </span>
           </h1>
 
-          {/* Subtítulo */}
           <p className="max-w-2xl leading-normal text-zinc-400 sm:text-xl sm:leading-8">
-            Pare de perder dinheiro com assinaturas esquecidas. Deixe nossa IA analisar seus gastos, 
-            sugerir cortes e organizar sua vida financeira automaticamente.
+            Registre entradas e saídas, acompanhe assinaturas e veja seu progresso em
+            metas — tudo em um lugar só, sem planilha.
           </p>
 
-          {/* Botões de Ação */}
           <div className="flex flex-col gap-4 sm:flex-row">
             {!user ? (
               <Link href="/register">
-                <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold text-lg h-12 px-8 neon-shadow">
+                <Button
+                  size="lg"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold text-lg h-12 px-8"
+                >
                   Criar Conta Grátis
                 </Button>
               </Link>
             ) : (
               <Link href="/main/dashboard">
-                <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold text-lg h-12 px-8 neon-shadow">
+                <Button
+                  size="lg"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-zinc-950 font-bold text-lg h-12 px-8"
+                >
                   Ir para Dashboard
                 </Button>
               </Link>
             )}
           </div>
-
-          {/* Imagem/Mockup Abstrato (Efeito Visual) */}
-          <div className="mt-10 w-full max-w-5xl rounded-xl border border-zinc-800 bg-zinc-950/50 p-2 shadow-2xl shadow-emerald-900/20 backdrop-blur-sm lg:mt-16">
-            <div className="rounded-lg bg-zinc-900/50 p-8 min-h-75 flex items-center justify-center border border-dashed border-zinc-800">
-               <div className="text-center space-y-4">
-                  <Bot className="w-16 h-16 text-zinc-700 mx-auto" />
-                  <p className="text-zinc-500">Preview do Dashboard (Colocar print real depois)</p>
-               </div>
-            </div>
-          </div>
         </section>
 
-        {/* --- FEATURES GRID (Vantagens) --- */}
         <section className="container mx-auto py-20 px-4" id="features">
           <div className="grid gap-8 md:grid-cols-3">
-            {/* Card 1 */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-emerald-500/50 transition-colors duration-300">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
-                <Wallet className="h-6 w-6 text-emerald-500" />
-              </div>
-              <h3 className="mb-2 text-xl font-bold text-white">Controle Total</h3>
-              <p className="text-zinc-400">
-                Registre receitas e despesas em segundos. Categorização automática e visualização clara do seu saldo.
-              </p>
-            </div>
-
-            {/* Card 2 */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-emerald-500/50 transition-colors duration-300">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
-                <TrendingUp className="h-6 w-6 text-emerald-500" />
-              </div>
-              <h3 className="mb-2 text-xl font-bold text-white">Assinaturas</h3>
-              <p className="text-zinc-400">
-                Nunca mais pague por esquecimento. O sistema alerta antes da renovação da Netflix, Spotify e outros.
-              </p>
-            </div>
-
-            {/* Card 3 */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-emerald-500/50 transition-colors duration-300">
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
-                <Bot className="h-6 w-6 text-emerald-500" />
-              </div>
-              <h3 className="mb-2 text-xl font-bold text-white">Mentor IA</h3>
-              <p className="text-zinc-400">
-                Receba conselhos personalizados: "Corte 20% em delivery e invista a diferença para comprar seu PC."
-              </p>
-            </div>
+            <Feature
+              icon={<Wallet className="h-6 w-6 text-emerald-500" />}
+              title="Lançamentos rápidos"
+              text="Registre receitas e despesas em segundos. Filtre por mês, busque por descrição e veja seu saldo em tempo real."
+            />
+            <Feature
+              icon={<TrendingUp className="h-6 w-6 text-emerald-500" />}
+              title="Assinaturas e contas fixas"
+              text="Centralize Netflix, Spotify, internet, aluguel — descubra quanto sai automaticamente todo mês."
+            />
+            <Feature
+              icon={<Bot className="h-6 w-6 text-emerald-500" />}
+              title="Metas que se cumprem"
+              text="Defina um alvo, vá juntando aos poucos e acompanhe o progresso com gráficos claros."
+            />
           </div>
         </section>
       </main>
 
-      {/* --- FOOTER --- */}
       <footer className="border-t border-zinc-800 bg-zinc-950 py-8">
         <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-zinc-500">
-            © 2026 FinSmart AI. Desenvolvido para Portfólio.
+            © 2026 FinSmart. Desenvolvido para portfólio.
           </p>
           <div className="flex gap-4">
-             <a href="https://github.com/joaovitor8" target="_blank" className="text-sm text-zinc-500 hover:text-emerald-500">GitHub</a>
-             <a href="https://www.linkedin.com/in/joaovitorezequiel/" target="_blank" className="text-sm text-zinc-500 hover:text-emerald-500">LinkedIn</a>
+            <a
+              href="https://github.com/joaovitor8"
+              target="_blank"
+              className="text-sm text-zinc-500 hover:text-emerald-500"
+            >
+              GitHub
+            </a>
+            <a
+              href="https://www.linkedin.com/in/joaovitorezequiel/"
+              target="_blank"
+              className="text-sm text-zinc-500 hover:text-emerald-500"
+            >
+              LinkedIn
+            </a>
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
 
+function Feature({
+  icon,
+  title,
+  text,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-6 hover:border-emerald-500/50 transition-colors duration-300">
+      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10">
+        {icon}
+      </div>
+      <h3 className="mb-2 text-xl font-bold text-white">{title}</h3>
+      <p className="text-zinc-400">{text}</p>
     </div>
   );
 }

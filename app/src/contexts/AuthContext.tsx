@@ -1,9 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import axios from "axios";
 
-// Definimos o que é um Usuário para o TypeScript
 type User = {
   id: string;
   name: string | null;
@@ -22,13 +20,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Assim que o app carrega, ele bate na nossa rota /api/auth/me
+  // Tenta recuperar o usuário a partir do cookie httpOnly
   useEffect(() => {
     async function loadUser() {
       try {
-        const response = await axios.get("/api/auth/me");
-        setUser(response.data.user);
-      } catch (error) {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          setUser(null);
+          return;
+        }
+        const data = await res.json();
+        setUser(data.user ?? null);
+      } catch {
         setUser(null);
       } finally {
         setIsLoading(false);
@@ -44,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// O nosso próprio hook personalizado!
+// Hook para consumir o contexto de autenticação.
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

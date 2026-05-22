@@ -1,15 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import axios from "axios";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Loader2, UserPlus } from "lucide-react";
-import { Button } from "@/src/components/ui/button";
-import { Input } from "@/src/components/ui/input";
 import { toast } from "sonner";
 
-
+import { Button } from "@/src/components/ui/button";
+import { Input } from "@/src/components/ui/input";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,11 +21,21 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await axios.post("/api/auth/register", { name, email, password });
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error ?? "Erro ao criar conta");
+        return;
+      }
+
       toast.success("Conta criada! Faça login para continuar.");
       router.push("/login");
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Erro ao criar conta");
+    } finally {
       setLoading(false);
     }
   };
@@ -37,52 +45,65 @@ export default function RegisterPage() {
       <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-foreground tracking-tight">Criar Conta</h2>
-          <p className="text-sm text-muted-foreground mt-2">Junte-se ao Universe hoje</p>
+          <p className="text-sm text-muted-foreground mt-2">Junte-se ao FinSmart hoje</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-6 mt-8">
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Nome</label>
-              <Input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                required 
+              <label htmlFor="name" className="text-sm font-medium text-foreground mb-1 block">
+                Nome
+              </label>
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
                 placeholder="Como quer ser chamado?"
                 className="bg-secondary/50"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Email</label>
-              <Input 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
+              <label htmlFor="email" className="text-sm font-medium text-foreground mb-1 block">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
                 placeholder="seu@email.com"
                 className="bg-secondary/50"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Senha</label>
-              <Input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
-                placeholder="No mínimo 6 caracteres"
+              <label htmlFor="password" className="text-sm font-medium text-foreground mb-1 block">
+                Senha
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="No mínimo 8 caracteres"
                 className="bg-secondary/50"
               />
             </div>
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full bg-emerald-500 text-background hover:bg-emerald-600 font-semibold h-11" 
+          <Button
+            type="submit"
+            className="w-full bg-emerald-500 text-background hover:bg-emerald-600 font-semibold h-11"
             disabled={loading}
           >
-            {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5" />}
+            {loading ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <UserPlus className="mr-2 h-5 w-5" />
+            )}
             Cadastrar
           </Button>
         </form>

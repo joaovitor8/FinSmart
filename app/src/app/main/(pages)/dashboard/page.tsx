@@ -1,12 +1,10 @@
-import { AppShell } from "@/src/components/app-shell"
+import { AppShell } from "@/src/components/app-shell";
+import { DashboardView } from "@/src/components/dashboard/dashboardView";
 
-
-export default function DashboardPage() {
+export default async function DashboardPage() {
   return (
     <AppShell>
-      <div className="flex flex-col gap-6">
-        aaa
-      </div>
+      <DashboardView />
     </AppShell>
-  )
+  );
 }

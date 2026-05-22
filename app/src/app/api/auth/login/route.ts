@@ -1,40 +1,39 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/src/lib/prisma";
 import bcrypt from "bcryptjs";
-import { signToken } from "@/src/lib/auth";
 import { cookies } from "next/headers";
+
+import { prisma } from "@/src/lib/prisma";
+import { signToken } from "@/src/lib/auth";
+import { loginSchema } from "@/src/lib/schemas";
+import { AUTH_COOKIE, authCookieOptions } from "@/src/lib/cookie-options";
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email e senha são obrigatórios" }, { status: 400 });
+    // Valida payload
+    const parsed = loginSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
     }
+    const { email, password } = parsed.data;
 
-    // 1. Busca o usuário no banco
+    // Busca usuário
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return NextResponse.json({ error: "Credenciais inválidas" }, { status: 401 });
     }
 
-    // 2. Compara a senha digitada com o hash do banco
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
+    // Confere senha
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) {
       return NextResponse.json({ error: "Credenciais inválidas" }, { status: 401 });
     }
 
-    // 3. Gera o Token JWT usando o id do banco
+    // Gera JWT e seta cookie
     const token = await signToken(user.id);
-
-    // 4. Salva o token nos Cookies de forma segura (Next.js 15 exige await no cookies())
     const cookieStore = await cookies();
-    cookieStore.set("auth_token", token, {
-      httpOnly: true, // Impede que o JS do navegador leia o cookie (proteção XSS)
-      secure: process.env.NODE_ENV === "production", // Só trafega em HTTPS na produção
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // Dura 7 dias
-      path: "/", // Válido em todo o site
+    cookieStore.set(AUTH_COOKIE, token, {
+      ...authCookieOptions(),
+      maxAge: 60 * 60 * 24 * 7, // 7 dias
     });
 
     return NextResponse.json({ success: true });
