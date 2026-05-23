@@ -5,9 +5,19 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/src/lib/prisma";
 import { registerSchema } from "@/src/lib/schemas";
 import { seedDefaultCategories } from "@/src/lib/seed";
+import { rateLimit, getClientIp } from "@/src/lib/ratelimit";
 
 export async function POST(request: Request) {
   try {
+    // Anti criação em massa de contas: limita cadastros por IP
+    const limit = rateLimit(`register:${getClientIp(request)}`, 5, 10 * 60_000);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de cadastro. Aguarde alguns minutos e tente novamente." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
+
     // Valida e normaliza payload (zod já faz lowercase/trim no email)
     const parsed = registerSchema.safeParse(await request.json());
     if (!parsed.success) {

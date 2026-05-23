@@ -1,5 +1,6 @@
 // Arquivo para configurar o Prisma Client com o adaptador PostgreSQL
 // Garantir que ele seja reutilizado durante o desenvolvimento para evitar múltiplas conexões.
+import "server-only";
 
 import { Pool } from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'

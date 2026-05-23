@@ -6,9 +6,19 @@ import { prisma } from "@/src/lib/prisma";
 import { signToken } from "@/src/lib/auth";
 import { loginSchema } from "@/src/lib/schemas";
 import { AUTH_COOKIE, authCookieOptions } from "@/src/lib/cookie-options";
+import { rateLimit, getClientIp } from "@/src/lib/ratelimit";
 
 export async function POST(request: Request) {
   try {
+    // Anti brute force: limita tentativas de login por IP
+    const limit = rateLimit(`login:${getClientIp(request)}`, 5, 60_000);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "Muitas tentativas de login. Aguarde um momento e tente novamente." },
+        { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } },
+      );
+    }
+
     // Valida payload
     const parsed = loginSchema.safeParse(await request.json());
     if (!parsed.success) {

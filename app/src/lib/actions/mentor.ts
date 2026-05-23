@@ -5,6 +5,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/src/lib/prisma";
 import { requireUserId } from "@/src/lib/auth-server";
 import { getAnthropic, MENTOR_MODEL } from "@/src/lib/anthropic";
+import { rateLimit } from "@/src/lib/ratelimit";
+import { askMentorSchema } from "@/src/lib/schemas";
 
 export type MentorMessage = {
   role: "user" | "assistant";
@@ -138,14 +140,26 @@ export async function askMentor(
   userMessage: string,
 ): Promise<{ reply: string }> {
   const userId = await requireUserId();
+
+  // Anti abuso de custo: limita chamadas à API paga da Anthropic por usuário.
+  const limit = rateLimit(`mentor:${userId}`, 10, 60_000);
+  if (!limit.success) {
+    return {
+      reply: `Você enviou muitas perguntas em pouco tempo. Aguarde ${limit.retryAfterSeconds}s e tente novamente.`,
+    };
+  }
+
+  // Valida tamanho da pergunta e do histórico — evita prompt-bomb na API
+  const parsed = askMentorSchema.parse({ history, userMessage });
+
   const client = getAnthropic();
 
   const finance = await buildFinancialContext(userId);
 
   // Monta as mensagens: histórico do chat + a nova pergunta
   const messages: Anthropic.MessageParam[] = [
-    ...history.map<Anthropic.MessageParam>((m) => ({ role: m.role, content: m.content })),
-    { role: "user", content: userMessage },
+    ...parsed.history.map<Anthropic.MessageParam>((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: parsed.userMessage },
   ];
 
   const response = await client.messages.create({
