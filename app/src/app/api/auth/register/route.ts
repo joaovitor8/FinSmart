@@ -6,11 +6,15 @@ import { prisma } from "@/src/lib/prisma";
 import { registerSchema } from "@/src/lib/schemas";
 import { seedDefaultCategories } from "@/src/lib/seed";
 import { rateLimit, getClientIp } from "@/src/lib/ratelimit";
+import { generateToken, hashToken } from "@/src/lib/tokens";
+import { sendVerificationEmail } from "@/src/lib/email";
+
+const VERIFICATION_TTL_HOURS = 24;
 
 export async function POST(request: Request) {
   try {
     // Anti criação em massa de contas: limita cadastros por IP
-    const limit = rateLimit(`register:${getClientIp(request)}`, 5, 10 * 60_000);
+    const limit = await rateLimit(`register:${getClientIp(request)}`, 5, 10 * 60_000);
     if (!limit.success) {
       return NextResponse.json(
         { error: "Muitas tentativas de cadastro. Aguarde alguns minutos e tente novamente." },
@@ -26,21 +30,44 @@ export async function POST(request: Request) {
     }
     const { email, password, name } = parsed.data;
 
-    // Email já cadastrado?
+    // Email já cadastrado? Em vez de devolver erro (vaza enumeração de contas),
+    // simula sucesso. O frontend redireciona pra /login e o usuário descobre lá
+    // se a conta era dele (login funciona) ou não.
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return NextResponse.json({ error: "Este email já está em uso" }, { status: 400 });
+      // Pad de timing: roda um bcrypt.hash descartado pra resposta levar o mesmo
+      // tempo do caminho normal — senão o atacante mede o delta e descobre.
+      await bcrypt.hash(password, 12);
+      return NextResponse.json({ success: true }, { status: 201 });
     }
 
-    // Hash + create + seed em uma única transação — ou tudo passa, ou nada fica salvo
+    // Hash + create + seed + token de verificação numa transação atômica
     const passwordHash = await bcrypt.hash(password, 12);
-    await prisma.$transaction(async (tx) => {
+    const rawToken = generateToken();
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + VERIFICATION_TTL_HOURS * 60 * 60 * 1000);
+
+    const userId = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: { email, name, passwordHash },
       });
       await seedDefaultCategories(user.id, tx);
+      await tx.emailVerificationToken.create({
+        data: { userId: user.id, tokenHash, expiresAt },
+      });
+      return user.id;
     });
 
+    // Envia o email FORA da transação (Resend pode falhar — não queremos rollback).
+    // Se falhar, o usuário pode pedir reenvio pela tela de configurações.
+    try {
+      await sendVerificationEmail({ to: email, name, token: rawToken });
+    } catch (err) {
+      console.error("Falha ao enviar email de verificação:", err);
+      // Não falha o cadastro — o usuário consegue entrar e pedir reenvio depois
+    }
+
+    void userId;
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
     console.error("Erro no registro:", error);

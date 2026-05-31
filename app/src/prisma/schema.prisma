@@ -8,18 +8,69 @@ datasource db {
 
 // Usuário do sistema
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String?
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String?
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
 
   // Relações
-  monthlyFees  MonthlyFees[]
-  goals        Goal[]
-  transactions Transaction[]
-  categories   Category[]
-  budgets      Budget[]
+  monthlyFees             MonthlyFees[]
+  goals                   Goal[]
+  transactions            Transaction[]
+  categories              Category[]
+  budgets                 Budget[]
+  sessions                Session[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+}
+
+// Token de verificação de email. Armazenamos só o hash — o token em si
+// (que vai no link do email) nunca toca o DB. Se vazar o DB, ninguém
+// consegue reusar os tokens.
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Token de reset de senha. Mesmo padrão: armazenamos só o hash.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Sessão de login. O JWT carrega o ID dessa sessão. Permite revogar sem
+// invalidar todas as sessões do usuário (ex: encerrar só a do celular roubado).
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  userAgent  String?   @db.VarChar(500)
+  ip         String?   @db.VarChar(64)
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([revokedAt])
 }
 
 // Categoria criada pelo usuário (Alimentação, Transporte, Salário, etc.)

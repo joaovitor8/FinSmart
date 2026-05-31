@@ -3,9 +3,30 @@ import type { NextRequest } from "next/server";
 import { verifyToken } from "@/src/lib/auth";
 
 // Rotas públicas (sem login)
-const publicRoutes = ["/login", "/register", "/"];
+const publicRoutes = ["/login", "/register", "/", "/forgot-password", "/reset-password"];
 // Rotas exclusivas de quem NÃO está logado
-const authRoutes = ["/login", "/register"];
+const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
+
+const isProd = process.env.NODE_ENV === "production";
+
+// CSP com nonce por request. 'strict-dynamic' permite que os scripts assinados
+// com nonce carreguem chunks adicionais do Next sem precisar listar URLs.
+// 'unsafe-inline' fica só em style-src (React 19/Next 16 ainda emite estilos
+// inline em animações/transições — remover quebra UI).
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join("; ");
+}
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -13,13 +34,11 @@ export async function proxy(request: NextRequest) {
   const payload = token ? await verifyToken(token) : null;
   const isAuthenticated = !!payload;
 
-  // Rotas /api/* têm tratamento próprio — early return, não cai na lógica de páginas
+  // /api/*: sem CSP (não retorna HTML)
   if (path.startsWith("/api/")) {
-    // /api/auth/* (login, register, logout, me) é público
     if (path.startsWith("/api/auth")) {
       return NextResponse.next();
     }
-    // Demais APIs exigem login — retorna 401 (NÃO redireciona, senão POST vira 307)
     if (!isAuthenticated) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
     }
@@ -29,17 +48,28 @@ export async function proxy(request: NextRequest) {
   const isPublicRoute = publicRoutes.includes(path);
   const isAuthRoute = authRoutes.includes(path);
 
-  // Página privada sem login → manda pro login (só atinge GET de páginas)
   if (!isPublicRoute && !isAuthenticated) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-
-  // Login/register estando logado → manda pro dashboard
   if (isAuthRoute && isAuthenticated) {
     return NextResponse.redirect(new URL("/main/dashboard", request.url));
   }
 
-  return NextResponse.next();
+  // Em dev: sem CSP (HMR do Next precisa de eval e inline scripts)
+  if (!isProd) return NextResponse.next();
+
+  // Em prod: gera nonce e injeta na request (Next propaga pros próprios scripts)
+  // e na response (browser enforça).
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = buildCsp(nonce);
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
 }
 
 export const config = {

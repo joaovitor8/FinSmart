@@ -5,7 +5,8 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/src/lib/prisma";
-import { requireUserId } from "@/src/lib/auth-server";
+import { requireUserId, requireSession } from "@/src/lib/auth-server";
+import { revokeOtherSessions } from "@/src/lib/sessions";
 import { AUTH_COOKIE } from "@/src/lib/cookie-options";
 import {
   changePasswordSchema,
@@ -33,9 +34,10 @@ export async function updateProfile(input: unknown) {
   return { name: data.name, email: data.email };
 }
 
-// Troca senha exigindo a senha atual.
+// Troca senha exigindo a senha atual. Revoga TODAS as outras sessões pra que
+// dispositivos com cookies antigos sejam deslogados imediatamente.
 export async function changePassword(input: unknown) {
-  const userId = await requireUserId();
+  const { userId, sessionId } = await requireSession();
   const data = changePasswordSchema.parse(input);
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -46,6 +48,9 @@ export async function changePassword(input: unknown) {
 
   const passwordHash = await bcrypt.hash(data.newPassword, 12);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+
+  // Mantém a sessão atual ativa, derruba as outras
+  await revokeOtherSessions(userId, sessionId);
 }
 
 // Exclui a conta e tudo associado (FKs cascade no schema). Limpa cookie.
@@ -59,7 +64,7 @@ export async function deleteAccount(input: unknown) {
   const ok = await bcrypt.compare(data.password, user.passwordHash);
   if (!ok) throw new Error("Senha incorreta");
 
-  // onDelete: Cascade em User remove tudo (categorias, transactions, budgets, fees, goals)
+  // onDelete: Cascade em User remove tudo (sessões, categorias, transactions, budgets, fees, goals)
   await prisma.user.delete({ where: { id: userId } });
 
   const cookieStore = await cookies();

@@ -112,7 +112,8 @@ export function MentorView() {
           </Button>
         </div>
         <p className="text-[10px] text-muted-foreground mt-2 px-1">
-          Enter envia · Shift+Enter pula linha · O histórico não é salvo entre sessões
+          Enter envia · Shift+Enter pula linha · Histórico não é salvo entre sessões ·
+          Seu resumo financeiro é enviado à Anthropic (Claude) para gerar a resposta
         </p>
       </div>
     </div>
@@ -134,9 +135,13 @@ function EmptyState({
       <h3 className="text-base font-semibold text-foreground mb-1">
         Como posso te ajudar hoje?
       </h3>
-      <p className="text-xs text-muted-foreground mb-5 max-w-sm">
+      <p className="text-xs text-muted-foreground mb-2 max-w-sm">
         Eu vejo suas entradas, saídas, orçamentos e metas. Pergunte qualquer coisa sobre o
         seu mês.
+      </p>
+      <p className="text-[10px] text-muted-foreground/70 mb-5 max-w-sm">
+        Seu resumo financeiro do mês é enviado à Anthropic (Claude) para gerar a resposta.
+        Não envie informações sensíveis nas perguntas.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
         {SUGGESTIONS.map((s) => (

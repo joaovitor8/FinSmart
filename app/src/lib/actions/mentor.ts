@@ -142,7 +142,7 @@ export async function askMentor(
   const userId = await requireUserId();
 
   // Anti abuso de custo: limita chamadas à API paga da Anthropic por usuário.
-  const limit = rateLimit(`mentor:${userId}`, 10, 60_000);
+  const limit = await rateLimit(`mentor:${userId}`, 10, 60_000);
   if (!limit.success) {
     return {
       reply: `Você enviou muitas perguntas em pouco tempo. Aguarde ${limit.retryAfterSeconds}s e tente novamente.`,

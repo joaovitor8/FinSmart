@@ -1,13 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
+
+function VerifyToastHandler() {
+  const params = useSearchParams();
+  const verified = params.get("verified");
+
+  useEffect(() => {
+    if (verified === "ok") toast.success("Email verificado! Pode fazer login.");
+    else if (verified === "expired")
+      toast.error("Link expirado ou já usado. Faça login para reenviar.");
+    else if (verified === "invalid") toast.error("Link inválido.");
+  }, [verified]);
+
+  return null;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,6 +57,9 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <Suspense fallback={null}>
+        <VerifyToastHandler />
+      </Suspense>
       <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-lg">
         <div className="text-center">
           <h2 className="text-3xl font-bold text-foreground tracking-tight">
@@ -70,9 +87,17 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="text-sm font-medium text-foreground mb-1 block">
-                Senha
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="password" className="text-sm font-medium text-foreground">
+                  Senha
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-emerald-500 hover:text-emerald-400"
+                >
+                  Esqueci minha senha
+                </Link>
+              </div>
               <Input
                 id="password"
                 type="password"

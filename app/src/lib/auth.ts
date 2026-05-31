@@ -9,24 +9,34 @@ const getJwtSecretKey = () => {
   return new TextEncoder().encode(secret);
 };
 
-// Função para CRIAR o token quando o usuário faz login
-export async function signToken(userId: string) {
-  const token = await new SignJWT({ userId })
-    .setProtectedHeader({ alg: "HS256" }) // Algoritmo de criptografia
-    .setIssuedAt() // Data de criação
-    .setExpirationTime("7d") // O token vai durar 7 dias até o usuário precisar logar de novo
+export type SessionPayload = {
+  userId: string;
+  sessionId: string;
+};
+
+// Cria o token de acesso. O JWT carrega o sessionId pra permitir revogação
+// (o servidor consulta a tabela Session pra confirmar que a sessão ainda vale).
+export async function signToken(userId: string, sessionId: string) {
+  const token = await new SignJWT({ userId, sessionId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("7d")
     .sign(getJwtSecretKey());
-  
+
   return token;
 }
 
-// Função para LER o token e ver se é válido (vamos usar isso nas rotas e middleware)
-export async function verifyToken(token: string) {
+// Verifica APENAS a assinatura do JWT. NÃO consulta o banco — usado em middleware
+// (Edge runtime, sem Prisma). Pra validação completa (sessão não revogada),
+// use `getUserId` em auth-server.ts.
+export async function verifyToken(token: string): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecretKey());
-    return payload as { userId: string }; 
-  } catch (error) {
-    // Se o token for falso, alterado ou estiver expirado, ele cai aqui
-    return null; 
+    if (typeof payload.userId !== "string" || typeof payload.sessionId !== "string") {
+      return null;
+    }
+    return { userId: payload.userId, sessionId: payload.sessionId };
+  } catch {
+    return null;
   }
 }

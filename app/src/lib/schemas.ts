@@ -1,16 +1,45 @@
 // Schemas Zod compartilhados entre client (RHF) e server (validação de actions).
 import { z } from "zod";
 
+// Top senhas triviais. Lista pequena de propósito — pega os piores casos sem
+// virar maintenance burden. Comparação case-insensitive.
+const COMMON_PASSWORDS = new Set([
+  "12345678", "123456789", "1234567890", "12345678910",
+  "password", "password1", "password123", "passw0rd",
+  "senha1234", "senhasenha", "senha123", "minhasenha",
+  "qwerty123", "qwertyuiop", "asdfghjkl", "abc12345",
+  "11111111", "00000000", "10203040", "01020304",
+  "iloveyou", "admin123", "welcome123", "letmein123",
+]);
+
+function isWeakPassword(pwd: string): boolean {
+  return COMMON_PASSWORDS.has(pwd.toLowerCase());
+}
+
+// Schema base de senha. bcrypt trunca em 72 bytes; capar previne ambiguidade.
+const strongPassword = z
+  .string()
+  .min(8, "Senha precisa ter no mínimo 8 caracteres")
+  .max(72, "Senha muito longa (máx. 72 caracteres)")
+  .refine((p) => !isWeakPassword(p), {
+    message: "Essa senha é muito comum. Escolha algo mais difícil de adivinhar.",
+  });
+
 // --- Auth ---
-export const registerSchema = z.object({
-  name: z.string().trim().min(2, "Nome muito curto").max(80, "Nome muito longo"),
-  email: z.string().trim().toLowerCase().email("Email inválido").max(255, "Email muito longo"),
-  // bcrypt trunca silenciosamente em 72 bytes; capar previne ambiguidade
-  password: z
-    .string()
-    .min(8, "Senha precisa ter no mínimo 8 caracteres")
-    .max(72, "Senha muito longa (máx. 72 caracteres)"),
-});
+export const registerSchema = z
+  .object({
+    name: z.string().trim().min(2, "Nome muito curto").max(80, "Nome muito longo"),
+    email: z.string().trim().toLowerCase().email("Email inválido").max(255, "Email muito longo"),
+    password: strongPassword,
+  })
+  .refine(
+    (d) => {
+      // Bloqueia senha que contenha o local-part do email (ex: email "joao@x.com" + senha "joao12345")
+      const local = d.email.split("@")[0]?.toLowerCase() ?? "";
+      return local.length < 3 || !d.password.toLowerCase().includes(local);
+    },
+    { message: "Senha não pode conter seu email", path: ["password"] },
+  );
 export type RegisterInput = z.infer<typeof registerSchema>;
 
 export const loginSchema = z.object({
@@ -28,15 +57,16 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Senha atual obrigatória").max(200, "Senha muito longa"),
-    newPassword: z
-      .string()
-      .min(8, "Senha precisa ter no mínimo 8 caracteres")
-      .max(72, "Senha muito longa (máx. 72 caracteres)"),
+    newPassword: strongPassword,
     confirmPassword: z.string().max(72),
   })
   .refine((d) => d.newPassword === d.confirmPassword, {
     message: "Confirmação não confere",
     path: ["confirmPassword"],
+  })
+  .refine((d) => d.currentPassword !== d.newPassword, {
+    message: "A nova senha precisa ser diferente da atual",
+    path: ["newPassword"],
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
@@ -45,6 +75,23 @@ export const deleteAccountSchema = z.object({
   confirm: z.literal("EXCLUIR", { errorMap: () => ({ message: "Digite EXCLUIR para confirmar" }) }),
 });
 export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Email inválido").max(255, "Email muito longo"),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(10, "Token inválido").max(200, "Token inválido"),
+    newPassword: strongPassword,
+    confirmPassword: z.string().max(72),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Confirmação não confere",
+    path: ["confirmPassword"],
+  });
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
 // --- Goals ---
 export const goalIconEnum = z.enum(["target", "plane", "car", "home", "shield"]);

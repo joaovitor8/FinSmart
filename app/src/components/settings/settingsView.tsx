@@ -20,6 +20,7 @@ import {
 } from "@/src/components/ui/dialog";
 
 import { useAuth } from "@/src/contexts/AuthContext";
+import { SessionsCard } from "@/src/components/settings/sessionsCard";
 import {
   changePassword,
   deleteAccount,
@@ -59,6 +60,7 @@ export function SettingsView() {
 
       <ProfileCard user={user} onUpdated={(u) => setUser({ ...user, ...u })} />
       <PasswordCard />
+      <SessionsCard />
       <DangerZone
         onDeleted={() => {
           setUser(null);

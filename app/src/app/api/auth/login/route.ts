@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import { prisma } from "@/src/lib/prisma";
 import { signToken } from "@/src/lib/auth";
+import { createSession } from "@/src/lib/sessions";
 import { loginSchema } from "@/src/lib/schemas";
 import { AUTH_COOKIE, authCookieOptions } from "@/src/lib/cookie-options";
 import { rateLimit, getClientIp } from "@/src/lib/ratelimit";
@@ -11,7 +12,8 @@ import { rateLimit, getClientIp } from "@/src/lib/ratelimit";
 export async function POST(request: Request) {
   try {
     // Anti brute force: limita tentativas de login por IP
-    const limit = rateLimit(`login:${getClientIp(request)}`, 5, 60_000);
+    const ip = getClientIp(request);
+    const limit = await rateLimit(`login:${ip}`, 5, 60_000);
     if (!limit.success) {
       return NextResponse.json(
         { error: "Muitas tentativas de login. Aguarde um momento e tente novamente." },
@@ -38,8 +40,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Credenciais inválidas" }, { status: 401 });
     }
 
-    // Gera JWT e seta cookie
-    const token = await signToken(user.id);
+    // Cria sessão (registra IP + user agent pra UI de "suas sessões")
+    const sessionId = await createSession({
+      userId: user.id,
+      userAgent: request.headers.get("user-agent"),
+      ip,
+    });
+
+    // Gera JWT com userId + sessionId e seta cookie
+    const token = await signToken(user.id, sessionId);
     const cookieStore = await cookies();
     cookieStore.set(AUTH_COOKIE, token, {
       ...authCookieOptions(),
