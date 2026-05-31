@@ -129,19 +129,17 @@ Reconhecido mas adiado — não entra neste milestone.
 
 ## Traceability
 
-Mapeamento preliminar — o roadmapper vai consolidar.
-
-| Requirement | Fase prevista | Status |
-|-------------|---------------|--------|
-| FND-01 → FND-05 | Phase A: Foundation | Pending |
-| PXY-01 → PXY-05 | Phase B: Proxy & Headers | Pending |
-| API-01 → API-07 | Phase C: API Auth Hardening | Pending |
-| DAL-01 → DAL-07 | Phase D: DAL + authedAction | Pending |
-| AUD-01 → AUD-04 | Phase E: Audit Log | Pending |
-| CRN-01 → CRN-02 | Phase F: Token Cleanup Cron | Pending |
-| TFA-01 → TFA-07 | Phase G: 2FA (TOTP) | Pending |
-| CMP-01 → CMP-07 | Phase H: Compliance & P2 UX | Pending |
-| SEC-01 → SEC-02 | Phase I: Security Center | Pending |
+| Requirement | Fase | Status |
+|-------------|------|--------|
+| FND-01, FND-02, FND-03, FND-04, FND-05 | Phase 1: Foundation | Pending |
+| PXY-01, PXY-02, PXY-03, PXY-04, PXY-05 | Phase 2: Proxy & Headers | Pending |
+| API-01, API-02, API-03, API-04, API-05, API-06, API-07 | Phase 3: API Auth Hardening | Pending |
+| DAL-01, DAL-02, DAL-03, DAL-04, DAL-05, DAL-06, DAL-07 | Phase 4: DAL + authedAction | Pending |
+| AUD-01, AUD-02, AUD-03, AUD-04 | Phase 5: Audit Log | Pending |
+| CRN-01, CRN-02 | Phase 6: Token Cleanup Cron | Pending |
+| TFA-01, TFA-02, TFA-03, TFA-04, TFA-05, TFA-06, TFA-07 | Phase 7: 2FA (TOTP) | Pending |
+| CMP-01, CMP-02, CMP-03, CMP-04, CMP-05, CMP-06, CMP-07 | Phase 8: Compliance & P2 UX | Pending |
+| SEC-01, SEC-02 | Phase 9: Security Center + SECURITY.md | Pending |
 
 **Coverage:**
 - v1 requirements: 51 total
