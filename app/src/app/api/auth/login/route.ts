@@ -9,6 +9,18 @@ import { loginSchema } from "@/src/lib/schemas";
 import { AUTH_COOKIE, authCookieOptions } from "@/src/lib/cookie-options";
 import { rateLimit, getClientIp } from "@/src/lib/ratelimit";
 
+// Hash dummy lazy: bcrypt.compare contra ele leva o MESMO tempo do caminho
+// normal. Sem isso, ataque de timing detecta se o email existe (resposta
+// rápida quando não existe, ~200ms quando existe). Computa só na primeira
+// chamada e cacheia no closure do módulo.
+let dummyHash: string | null = null;
+async function getDummyHash(): Promise<string> {
+  if (!dummyHash) {
+    dummyHash = await bcrypt.hash("never-used-timing-pad", 12);
+  }
+  return dummyHash;
+}
+
 export async function POST(request: Request) {
   try {
     // Anti brute force: limita tentativas de login por IP
@@ -31,6 +43,9 @@ export async function POST(request: Request) {
     // Busca usuário
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      // Pad de timing: roda um bcrypt.compare descartado pra resposta levar o
+      // mesmo tempo do caminho com usuário existente.
+      await bcrypt.compare(password, await getDummyHash());
       return NextResponse.json({ error: "Credenciais inválidas" }, { status: 401 });
     }
 

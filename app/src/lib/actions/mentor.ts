@@ -141,11 +141,22 @@ export async function askMentor(
 ): Promise<{ reply: string }> {
   const userId = await requireUserId();
 
-  // Anti abuso de custo: limita chamadas à API paga da Anthropic por usuário.
-  const limit = await rateLimit(`mentor:${userId}`, 10, 60_000);
-  if (!limit.success) {
+  // Anti abuso de custo: dois limites em série.
+  // - Por minuto: barra rajadas (UX: usuário digitou rápido demais).
+  // - Por dia: barra acúmulo lento de gastos. Opus 4.7 a ~$15/$75 por Mtok
+  //   com max_tokens 1024 ⇒ 100 turnos/dia ≈ teto de custo previsível
+  //   por usuário ativo. Ajuste conforme o orçamento.
+  const perMinute = await rateLimit(`mentor:${userId}`, 10, 60_000);
+  if (!perMinute.success) {
     return {
-      reply: `Você enviou muitas perguntas em pouco tempo. Aguarde ${limit.retryAfterSeconds}s e tente novamente.`,
+      reply: `Você enviou muitas perguntas em pouco tempo. Aguarde ${perMinute.retryAfterSeconds}s e tente novamente.`,
+    };
+  }
+  const perDay = await rateLimit(`mentor-day:${userId}`, 100, 24 * 60 * 60_000);
+  if (!perDay.success) {
+    return {
+      reply:
+        "Você atingiu o limite diário de perguntas ao Mentor. Tente novamente amanhã.",
     };
   }
 

@@ -1,10 +1,15 @@
 import { SignJWT, jwtVerify } from "jose";
 
-// Pega a chave secreta do arquivo .env
+// Pega a chave secreta do arquivo .env.
+// HS256 com chave curta é trivialmente quebrável — exige ao menos 32 caracteres
+// (~192 bits). Gere com `openssl rand -base64 48`.
 const getJwtSecretKey = () => {
   const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length === 0) {
+  if (!secret) {
     throw new Error("A variável de ambiente JWT_SECRET não está definida.");
+  }
+  if (secret.length < 32) {
+    throw new Error("JWT_SECRET precisa ter ao menos 32 caracteres.");
   }
   return new TextEncoder().encode(secret);
 };

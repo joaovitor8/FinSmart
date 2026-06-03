@@ -45,6 +45,14 @@ export function ImportTransactionsSheet({ open, onOpenChange, categories }: Prop
   const [pending, startTransition] = useTransition();
 
   function handleFile(file: File) {
+    // Servidor já valida no máximo 1000 lançamentos; aqui só evita travar o
+    // browser do próprio usuário se o arquivo for absurdamente grande.
+    const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_BYTES) {
+      toast.error("Arquivo muito grande (limite: 5 MB).");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const text = String(reader.result ?? "");

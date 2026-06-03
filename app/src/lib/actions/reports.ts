@@ -187,9 +187,14 @@ export async function exportTransactionsCSV(months: number = 6): Promise<{
   return { filename, content };
 }
 
-// Escapa aspas e envolve em aspas se contiver separador
+// Escapa aspas e envolve em aspas se contiver separador.
+// CWE-1236: previne CSV injection. Excel/Sheets executam células que começam
+// com =, +, -, @, TAB ou CR como fórmula — atacante grava uma descrição
+// "=HYPERLINK(...)" e ela executa quando o CSV é aberto. Prefixar com '
+// neutraliza sem perder legibilidade.
 function csvEscape(value: string): string {
-  const needsQuotes = /[";\n\r]/.test(value);
-  const escaped = value.replace(/"/g, '""');
+  const sanitized = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  const needsQuotes = /[";\n\r]/.test(sanitized);
+  const escaped = sanitized.replace(/"/g, '""');
   return needsQuotes ? `"${escaped}"` : escaped;
 }

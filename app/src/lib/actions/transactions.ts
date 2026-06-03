@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/src/lib/prisma";
 import { requireUserId } from "@/src/lib/auth-server";
+import { rateLimit } from "@/src/lib/ratelimit";
 import { transactionImportSchema, transactionSchema } from "@/src/lib/schemas";
 import { dateInputToUTC } from "@/src/lib/format";
 import type { TransactionDTO } from "@/src/lib/types";
@@ -54,6 +55,13 @@ export async function listTransactions(): Promise<TransactionDTO[]> {
 // Cria uma transação.
 export async function createTransaction(input: unknown) {
   const userId = await requireUserId();
+
+  // Anti-flood: limita criação por usuário (não impede uso normal, mas barra bots)
+  const limit = await rateLimit(`tx-create:${userId}`, 30, 60_000);
+  if (!limit.success) {
+    throw new Error(`Muitas operações. Tente novamente em ${limit.retryAfterSeconds}s.`);
+  }
+
   const data = transactionSchema.parse(input);
 
   // Garante que a categoria pertence ao usuário
@@ -108,6 +116,17 @@ export async function updateTransaction(id: string, input: unknown) {
 // Importa em lote (CSV de extrato). Valida tudo, confere donos das categorias, insere em createMany.
 export async function importTransactions(input: unknown): Promise<{ imported: number }> {
   const userId = await requireUserId();
+
+  // Anti-abuso: cada chamada pode inserir até 1000 linhas; 3/min = teto de
+  // 3000 linhas/min por usuário, suficiente pra importar vários extratos
+  // grandes seguidos sem virar vetor de DoS de DB.
+  const limit = await rateLimit(`tx-import:${userId}`, 3, 60_000);
+  if (!limit.success) {
+    throw new Error(
+      `Limite de importações atingido. Tente novamente em ${limit.retryAfterSeconds}s.`,
+    );
+  }
+
   const data = transactionImportSchema.parse(input);
 
   // Coleta os categoryIds únicos e valida todos de uma vez

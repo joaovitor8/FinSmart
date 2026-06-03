@@ -131,6 +131,17 @@ export const budgetSchema = z.object({
 });
 export type BudgetInput = z.infer<typeof budgetSchema>;
 
+// Data no formato YYYY-MM-DD (o que <input type="date"> produz).
+// Sem o regex, dateInputToUTC vira `new Date("xyzT12:00:00.000Z")` = Invalid Date,
+// e o Prisma só explode no insert — virando 500 em vez de erro de validação.
+const dateInput = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (use YYYY-MM-DD)")
+  .refine(
+    (s) => !Number.isNaN(new Date(`${s}T12:00:00.000Z`).getTime()),
+    "Data inválida",
+  );
+
 // --- Mensalidades ---
 export const monthlyFeeFrequencyEnum = z.enum(["Mensal", "Anual"]);
 
@@ -139,7 +150,7 @@ export const monthlyFeeSchema = z.object({
   amount: z.coerce.number().positive("Valor precisa ser positivo"),
   categoryId: z.string().uuid("Categoria inválida"),
   frequency: monthlyFeeFrequencyEnum,
-  date: z.string().min(1, "Data obrigatória").max(30, "Data inválida"),
+  date: dateInput,
 });
 export type MonthlyFeeInput = z.infer<typeof monthlyFeeSchema>;
 
@@ -151,7 +162,7 @@ export const transactionSchema = z.object({
   amount: z.coerce.number().positive("Valor precisa ser positivo"),
   description: z.string().trim().min(1, "Descrição obrigatória").max(200, "Descrição muito longa"),
   categoryId: z.string().uuid("Categoria inválida"),
-  date: z.string().min(1, "Data obrigatória").max(30, "Data inválida"),
+  date: dateInput,
 });
 export type TransactionInput = z.infer<typeof transactionSchema>;
 
