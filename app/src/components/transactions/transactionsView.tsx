@@ -209,7 +209,7 @@ export function TransactionsView({ transactions, categories }: Props) {
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:flex-wrap">
-        <div className="relative flex-1 min-w-[180px] max-w-sm">
+        <div className="relative flex-1 min-w-45 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar descrição..."
